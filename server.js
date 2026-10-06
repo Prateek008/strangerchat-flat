@@ -44,7 +44,7 @@ const REPORTS_TO_BAN = 3;
 
 const BAD_WORDS = ["fuck", "shit", "bitch", "asshole", "bastard", "dick", "pussy", "slut", "whore", "nigger", "chutiya", "madarchod", "behenchod", "bhosdi", "randi", "gandu", "harami"];
 const badRe = new RegExp(`\\b(${BAD_WORDS.join("|")})\\b`, "gi");
-const urlRe = /(https?:\/\/|www\.)\S+|\b\S+\.(com|net|org|in|io|me|xyz|ly)\b\S*/gi;
+const urlRe = /(https?:\/\/|www\.)\S+|\b[\w-]+\.(com|net|org|io|xyz)\b\S*/gi;
 
 const clean = (t) =>
   t.replace(urlRe, "[link removed]").replace(badRe, (m) => "*".repeat(m.length));
@@ -73,9 +73,10 @@ function unlink(socket, notify = true) {
 }
 
 function pair(socket) {
-  const idx = waiting.findIndex(
-    (s) => s.connected && s.id !== socket.id && s !== socket.data.last && s.data.last !== socket
-  );
+  const ok = (s) => s.connected && s.id !== socket.id;
+  // prefer someone new; if nobody else is waiting, allow the previous partner too
+  let idx = waiting.findIndex((s) => ok(s) && s !== socket.data.last && s.data.last !== socket);
+  if (idx === -1) idx = waiting.findIndex(ok);
   if (idx === -1) {
     if (!waiting.includes(socket)) waiting.push(socket);
     socket.emit("waiting");

@@ -21,6 +21,7 @@ export default function App() {
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [online, setOnline] = useState(0);
+  const [connected, setConnected] = useState(socket.connected);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reason, setReason] = useState("spam");
@@ -39,6 +40,18 @@ export default function App() {
 
   useEffect(() => {
     socket.on("online", setOnline);
+    socket.on("connect", () => setConnected(true));
+    socket.on("disconnect", () => {
+      setConnected(false);
+      setTyping(false);
+      setPhase((p) => {
+        if (p === "chat" || p === "waiting") {
+          setMsgs((x) => [...x, { from: "sys", text: "Connection lost. Reconnecting…" }]);
+          return "ended";
+        }
+        return p;
+      });
+    });
     socket.on("waiting", () => { setPhase("waiting"); setMsgs([]); setTyping(false); });
     socket.on("matched", ({ name }) => {
       setPartner(name || "Stranger");
@@ -94,7 +107,7 @@ export default function App() {
   const inChat = phase === "chat" || phase === "ended" || phase === "waiting";
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col">
+    <div className="mx-auto flex h-dvh max-w-3xl flex-col">
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-bold tracking-tight">StrangerChat</h1>
@@ -139,10 +152,10 @@ export default function App() {
             />
             <button
               onClick={start}
-              disabled={!ageOk}
+              disabled={!ageOk || !connected}
               className="mt-4 w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:brightness-110 disabled:opacity-50"
             >
-              Start chat
+              {connected ? "Start chat" : "Connecting… (server can take up to a minute to wake up)"}
             </button>
             <ul className="mt-6 space-y-1 text-xs text-slate-500 dark:text-slate-400">
               <li>Text only. No images or links.</li>
@@ -169,6 +182,7 @@ export default function App() {
               </button>
               <button
                 onClick={start}
+                disabled={!connected}
                 className="rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-white hover:brightness-110"
               >
                 New chat
